@@ -11,13 +11,27 @@ if not API_KEY:
 openai.api_key = API_KEY
 
 SYSTEM_PROMPTS = {
-    "architect": "You are an experienced software architect. Provide high level design guidance for the requirement.",
-    "dba": "You are an expert DBA. Offer database schema ideas and query suggestions related to the request.",
-    "coding": "You are a coding specialist. Produce clear implementation code when asked.",
-    "qa": "You are a QA specialist. Suggest tests and ways to verify code quality.",
+    "architect": (
+        "You are the lead software architect of a development team. "
+        "Analyze the user's request and outline a high level design that the "
+        "other team members can build upon."
+    ),
+    "dba": (
+        "You are the team's database expert. Based on the architect's plan, "
+        "propose relevant schema designs or queries."
+    ),
+    "coding": (
+        "You are the implementation specialist. Cooperate with the architect "
+        "and DBA plans to produce clear code snippets."
+    ),
+    "qa": (
+        "You are the QA engineer. Review the proposed implementation and "
+        "suggest tests to verify quality."
+    ),
     "evaluator": (
-        "You evaluate the assistant results. Respond with 'APPROVED' if the solution looks good. "
-        "Otherwise respond with 'IMPROVE' followed by improvement suggestions."
+        "You review the entire discussion. Respond with 'APPROVED' if the "
+        "solution is satisfactory, otherwise reply with 'IMPROVE:' followed by "
+        "specific feedback."
     ),
 }
 
@@ -50,51 +64,49 @@ async def _ask_agent(role: str, messages):
 
 
 async def _orchestrate(user_input: str, max_iterations: int = 1):
+    """Coordinate the agents so each builds on the prior responses."""
     conversation = [{"role": "user", "content": user_input}]
 
-    arch_task = asyncio.create_task(_ask_agent("architect", conversation))
-    dba_task = asyncio.create_task(_ask_agent("dba", conversation))
-    code_task = asyncio.create_task(_ask_agent("coding", conversation))
-    qa_task = asyncio.create_task(_ask_agent("qa", conversation))
+    # The architect sets the direction for the team
+    arch_reply = await _ask_agent("architect", conversation)
+    conversation.append({"role": "assistant", "content": arch_reply})
 
-    arch_reply, dba_reply, code_reply, qa_reply = await asyncio.gather(
-        arch_task, dba_task, code_task, qa_task
-    )
+    # DBA responds after seeing the architect's plan
+    dba_reply = await _ask_agent("dba", conversation)
+    conversation.append({"role": "assistant", "content": dba_reply})
 
-    conversation.extend(
-        [
-            {"role": "assistant", "content": arch_reply},
-            {"role": "assistant", "content": dba_reply},
-            {"role": "assistant", "content": code_reply},
-            {"role": "assistant", "content": qa_reply},
-        ]
-    )
+    # Coding specialist implements using prior advice
+    code_reply = await _ask_agent("coding", conversation)
+    conversation.append({"role": "assistant", "content": code_reply})
 
-    combined = (
-        f"Architect:\n{arch_reply}\n\nDBA:\n{dba_reply}\n\n"
-        f"Coding Specialist:\n{code_reply}\n\nQA Specialist:\n{qa_reply}"
-    )
+    # QA reviews the implementation
+    qa_reply = await _ask_agent("qa", conversation)
+    conversation.append({"role": "assistant", "content": qa_reply})
 
-    evaluation = await _ask_agent(
-        "evaluator", [{"role": "assistant", "content": combined}]
-    )
+    evaluation = await _ask_agent("evaluator", conversation)
     iteration = 0
 
+    # Short improvement cycle if requested by the evaluator
     while "IMPROVE" in evaluation.upper() and iteration < max_iterations:
-        feedback = evaluation + "\nPlease incorporate these improvements."
-        code_reply, qa_reply = await asyncio.gather(
-            _ask_agent("coding", [{"role": "user", "content": feedback}]),
-            _ask_agent("qa", [{"role": "assistant", "content": feedback}]),
-        )
-        combined += (
-            f"\n\nUpdated Coding Specialist:\n{code_reply}\n\nUpdated QA Specialist:\n{qa_reply}"
-        )
-        evaluation = await _ask_agent(
-            "evaluator", [{"role": "assistant", "content": combined}]
-        )
+        conversation.append({"role": "assistant", "content": evaluation})
+
+        code_reply = await _ask_agent("coding", conversation)
+        conversation.append({"role": "assistant", "content": code_reply})
+
+        qa_reply = await _ask_agent("qa", conversation)
+        conversation.append({"role": "assistant", "content": qa_reply})
+
+        evaluation = await _ask_agent("evaluator", conversation)
         iteration += 1
 
-    return combined, evaluation
+    responses = {
+        "Architect": arch_reply,
+        "DBA": dba_reply,
+        "Coding Specialist": code_reply,
+        "QA Specialist": qa_reply,
+    }
+
+    return responses, evaluation
 
 
 TEMPLATE = """
@@ -102,16 +114,25 @@ TEMPLATE = """
 <html>
   <head>
     <title>Interactive Coding Agent</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 40px; }
+      .message { margin-bottom: 1em; }
+      .sender { font-weight: bold; }
+      pre { background: #f4f4f4; padding: 10px; }
+    </style>
   </head>
   <body>
     <h1>Interactive Coding Agent</h1>
-    <div>
+    <div id="log">
     {% for entry in log %}
-      <p><strong>{{ entry['sender'] }}:</strong> {{ entry['text'] }}</p>
+      <div class="message">
+        <span class="sender">{{ entry['sender'] }}:</span>
+        <pre><code>{{ entry['text'] }}</code></pre>
+      </div>
     {% endfor %}
     </div>
     <form method="post">
-      <input name="message" autofocus style="width:80%%" />
+      <textarea name="message" rows="4" style="width:80%" autofocus></textarea><br/>
       <button type="submit">Send</button>
     </form>
   </body>
@@ -134,8 +155,9 @@ def index():
         msg = request.form.get("message", "").strip()
         if msg:
             log.append({"sender": "User", "text": msg})
-            combined, evaluation = asyncio.run(_orchestrate(msg))
-            log.append({"sender": "Agents", "text": combined})
+            responses, evaluation = asyncio.run(_orchestrate(msg))
+            for role, text in responses.items():
+                log.append({"sender": role, "text": text})
             log.append({"sender": "Evaluator", "text": evaluation})
     return render_template_string(TEMPLATE, log=log)
 

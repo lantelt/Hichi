@@ -1,6 +1,6 @@
 # Interactive Coding Agent
 
-This repository now contains an example multi‑agent coding assistant that can be accessed through a simple web interface. Several specialized agents – an Architect, DBA, Coding Specialist and QA Specialist – collaborate on each request. Their work is reviewed by an evaluation agent which can trigger a short improvement cycle. The agents run concurrently using asynchronous OpenAI API calls and each visitor has an isolated chat session.
+This repository now contains an example multi‑agent coding assistant that can be accessed through a simple web interface. Several specialized agents – an Architect, DBA, Coding Specialist and QA Specialist – collaborate on each request. Their work is reviewed by an evaluation agent which can trigger a short improvement cycle. The agents now build on one another's replies so the flow resembles a real development team. Each visitor has an isolated chat session.
 
 ## Requirements
 
