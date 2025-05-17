@@ -5,18 +5,29 @@ This repository now contains an example interactive coding agent built in Python
 ## Requirements
 
 - Python 3.8+
-- `openai` Python package (`pip install openai`)
-- An OpenAI API key set as the environment variable `OPENAI_API_KEY`
+- `openai` Python package (`pip install openai`) *(installed automatically when using the Docker container)*
+- An OpenAI API key provided via the `OPENAI_API_KEY` environment variable
 
 ## Usage
 
-Run the agent in your terminal:
+### Local execution
+
+Run the agent directly in your terminal:
 
 ```bash
 python interactive_agent.py
 ```
 
 Type your questions or coding requests and the assistant will respond. Enter `exit` or `quit` to end the session.
+
+### Running with Docker
+
+You can also build and run the agent inside a container. This keeps any API keys out of the repository and allows them to be supplied at runtime:
+
+```bash
+docker build -t interactive-agent .
+docker run --rm -e OPENAI_API_KEY=your-key-here interactive-agent
+```
 
 ## Note
 
