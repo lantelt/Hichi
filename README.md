@@ -1,24 +1,22 @@
 # Interactive Coding Agent
 
-This repository now contains an example interactive coding agent built in Python. The agent uses the OpenAI API to provide conversational coding assistance directly from the command line.
+This repository now contains an example multi‑agent coding assistant that can be accessed through a simple web interface. Several specialized agents – an Architect, DBA, Coding Specialist and QA Specialist – collaborate on each request. Their work is reviewed by an evaluation agent which can trigger a short improvement cycle. The agents run concurrently using asynchronous OpenAI API calls and each visitor has an isolated chat session.
 
 ## Requirements
 
 - Python 3.8+
-- `openai` Python package (`pip install openai`) *(installed automatically when using the Docker container)*
+- Required Python packages: `openai` and `flask` (installed automatically when using the Docker container)
 - An OpenAI API key provided via the `OPENAI_API_KEY` environment variable
 
 ## Usage
 
 ### Local execution
 
-Run the agent directly in your terminal:
+Start the web server and open your browser to `http://localhost:5000`:
 
 ```bash
 python interactive_agent.py
 ```
-
-Type your questions or coding requests and the assistant will respond. Enter `exit` or `quit` to end the session.
 
 ### Running with Docker
 
@@ -26,8 +24,10 @@ You can also build and run the agent inside a container. This keeps any API keys
 
 ```bash
 docker build -t interactive-agent .
-docker run --rm -e OPENAI_API_KEY=your-key-here interactive-agent
+docker run --rm -p 5000:5000 -e OPENAI_API_KEY=your-key-here interactive-agent
 ```
+
+You can optionally set `FLASK_SECRET` to specify the Flask session secret key.
 
 ## Note
 
