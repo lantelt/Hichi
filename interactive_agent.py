@@ -28,6 +28,10 @@ SYSTEM_PROMPTS = {
         "You are the QA engineer. Review the proposed implementation and "
         "suggest tests to verify quality."
     ),
+    "project_manager": (
+        "You are the project manager overseeing the team. Summarize objectives, "
+        "coordinate tasks, and ensure each role stays aligned."
+    ),
     "evaluator": (
         "You review the entire discussion. Respond with 'APPROVED' if the "
         "solution is satisfactory, otherwise reply with 'IMPROVE:' followed by "
@@ -83,6 +87,10 @@ async def _orchestrate(user_input: str, max_iterations: int = 1):
     qa_reply = await _ask_agent("qa", conversation)
     conversation.append({"role": "assistant", "content": qa_reply})
 
+    # Project manager coordinates based on the latest updates
+    pm_reply = await _ask_agent("project_manager", conversation)
+    conversation.append({"role": "assistant", "content": pm_reply})
+
     evaluation = await _ask_agent("evaluator", conversation)
     iteration = 0
 
@@ -96,6 +104,9 @@ async def _orchestrate(user_input: str, max_iterations: int = 1):
         qa_reply = await _ask_agent("qa", conversation)
         conversation.append({"role": "assistant", "content": qa_reply})
 
+        pm_reply = await _ask_agent("project_manager", conversation)
+        conversation.append({"role": "assistant", "content": pm_reply})
+
         evaluation = await _ask_agent("evaluator", conversation)
         iteration += 1
 
@@ -104,6 +115,7 @@ async def _orchestrate(user_input: str, max_iterations: int = 1):
         "DBA": dba_reply,
         "Coding Specialist": code_reply,
         "QA Specialist": qa_reply,
+        "Project Manager": pm_reply,
     }
 
     return responses, evaluation
