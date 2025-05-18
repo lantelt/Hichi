@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY interactive_agent.py /app/
 
-RUN pip install --no-cache-dir openai flask
+RUN pip install --no-cache-dir openai flask adk
 
 EXPOSE 5000
 
