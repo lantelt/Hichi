@@ -29,6 +29,9 @@ The application uses several variables that can be set via Docker or your shell:
 - `ADK_MCP_URL` – base URL to the Model Context Protocol service.
 - `ADK_MCP_TOKEN` – authentication token for MCP requests.
 
+When set, these variables are passed to every `LlmAgent` so the ADK can
+communicate with an MCP service for tool execution and state sharing.
+
 ## Usage
 
 ### Local execution

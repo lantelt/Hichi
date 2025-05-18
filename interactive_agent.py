@@ -12,6 +12,16 @@ if not API_KEY:
 openai.api_key = API_KEY
 MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
 
+# Optional MCP configuration for the ADK
+MCP_URL = os.getenv("ADK_MCP_URL")
+MCP_TOKEN = os.getenv("ADK_MCP_TOKEN")
+
+_MCP_KWARGS = {}
+if MCP_URL:
+    _MCP_KWARGS["mcp_url"] = MCP_URL
+if MCP_TOKEN:
+    _MCP_KWARGS["mcp_token"] = MCP_TOKEN
+
 
 SYSTEM_PROMPTS = {
     "market_research": (
@@ -119,18 +129,19 @@ IMPROVEMENT_FLOW = ["code_generation", "code_review", "test_generation"]
 
 def _build_workflow(max_iterations: int = 1):
     sub_agents = [
-        LlmAgent(name=role, prompt=SYSTEM_PROMPTS[role], model=MODEL)
+        LlmAgent(name=role, prompt=SYSTEM_PROMPTS[role], model=MODEL, **_MCP_KWARGS)
         for role in WORKFLOW_ORDER
     ]
     seq = SequentialAgent(sub_agents=sub_agents)
     improvement_agents = [
-        LlmAgent(name=role, prompt=SYSTEM_PROMPTS[role], model=MODEL)
+        LlmAgent(name=role, prompt=SYSTEM_PROMPTS[role], model=MODEL, **_MCP_KWARGS)
         for role in IMPROVEMENT_FLOW
     ]
     evaluator = LlmAgent(
         name="solution_evaluation",
         prompt=SYSTEM_PROMPTS["solution_evaluation"],
         model=MODEL,
+        **_MCP_KWARGS,
     )
     return LoopAgent(
         main_agent=seq,
