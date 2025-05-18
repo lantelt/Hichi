@@ -18,6 +18,8 @@ Start the web server and open your browser to `http://localhost:5000`:
 ```bash
 python interactive_agent.py
 ```
+The page now includes a field allowing you to select how many improvement cycles
+should run. Leave it blank to use the `MAX_ITERATIONS` environment default.
 
 ### Running with Docker
 
@@ -27,9 +29,9 @@ You can also build and run the agent inside a container. This keeps any API keys
 docker build -t interactive-agent .
 docker run --rm -p 5000:5000 -e OPENAI_API_KEY=your-key-here interactive-agent
 ```
-
 You can optionally set `FLASK_SECRET` to specify the Flask session secret key.
-
+`MAX_ITERATIONS` can also be set to change how many improvement cycles run by default.
+The server will keep up to `MAX_LOG_LENGTH` messages in memory for each session (default 100). Older messages are written to files under `logs/`.
 ## Note
 
 This script requires an internet connection and a valid OpenAI API key. Error handling is minimal and provided as a basic example. Feel free to expand upon it for your own use.

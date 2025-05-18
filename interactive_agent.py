@@ -10,6 +10,7 @@ if not API_KEY:
 
 openai.api_key = API_KEY
 MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+DEFAULT_MAX_ITERATIONS = int(os.getenv("MAX_ITERATIONS", "1"))
 
 
 SYSTEM_PROMPTS = {
@@ -87,6 +88,28 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET", "dev")
 chat_logs = {}
 
+# Maximum number of entries kept in memory per session.
+MAX_LOG_LENGTH = int(os.getenv("MAX_LOG_LENGTH", "100"))
+
+# Directory for persisting pruned log entries
+LOG_DIR = os.path.join(os.path.dirname(__file__), "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+
+def _store_old_entry(sid: str, entry: dict):
+    """Append a pruned log entry to a session log file."""
+    path = os.path.join(LOG_DIR, f"{sid}.log")
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(f"{entry['sender']}: {entry['text']}\n")
+
+
+def _append_and_prune(log: list, entry: dict, sid: str):
+    """Append an entry to the in-memory log and remove old ones."""
+    log.append(entry)
+    while len(log) > MAX_LOG_LENGTH:
+        old = log.pop(0)
+        _store_old_entry(sid, old)
+
 
 async def _ask_agent(role: str, messages):
     return await AGENTS[role].ask(messages)
@@ -162,6 +185,7 @@ TEMPLATE = """
     </div>
     <form method="post">
       <textarea name="message" rows="4" style="width:80%" autofocus></textarea><br/>
+      <input type="number" name="iterations" min="1" value="{{ iterations }}" /><br/>
       <button type="submit">Send</button>
     </form>
   </body>
@@ -180,15 +204,25 @@ def ensure_session():
 def index():
     sid = session["id"]
     log = chat_logs.setdefault(sid, [])
+    iterations_input = request.form.get("iterations", "")
+    iterations = DEFAULT_MAX_ITERATIONS
+    if iterations_input.isdigit():
+        iterations = int(iterations_input)
+
     if request.method == "POST":
         msg = request.form.get("message", "").strip()
         if msg:
-            log.append({"sender": "User", "text": msg})
-            state, evaluation = asyncio.run(_orchestrate(msg))
+            _append_and_prune(log, {"sender": "User", "text": msg}, sid)
+            state, evaluation = asyncio.run(_orchestrate(msg, max_iterations=iterations))
             for role, text in state.items():
-                log.append({"sender": role, "text": text})
-            log.append({"sender": "Evaluator", "text": evaluation})
-    return render_template_string(TEMPLATE, log=log)
+                _append_and_prune(log, {"sender": role, "text": text}, sid)
+            _append_and_prune(log, {"sender": "Evaluator", "text": evaluation}, sid)
+
+    return render_template_string(
+        TEMPLATE,
+        log=log,
+        iterations=iterations_input or DEFAULT_MAX_ITERATIONS,
+    )
 
 
 if __name__ == "__main__":
