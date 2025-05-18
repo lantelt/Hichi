@@ -21,6 +21,8 @@ openai_stub.api_key = None
 sys.modules['openai'] = openai_stub
 
 os.environ.setdefault("OPENAI_API_KEY", "test")
+os.environ.setdefault("ADK_MCP_URL", "http://mcp")
+os.environ.setdefault("ADK_MCP_TOKEN", "token")
 
 # Stub flask and adk modules so interactive_agent imports succeed
 flask_stub = types.SimpleNamespace(
@@ -53,12 +55,14 @@ class OrchestrateUsesAdkTest(unittest.IsolatedAsyncioTestCase):
     async def test_orchestrate_uses_adk(self):
         created = []
         used_models = []
+        used_kwargs = []
 
         class FakeAgent:
             def __init__(self, name, prompt, model=None, **kwargs):
                 self.name = name
                 created.append(name)
                 used_models.append(model)
+                used_kwargs.append(kwargs)
 
             async def run(self, inp):
                 return f"{self.name} response"
@@ -98,6 +102,9 @@ class OrchestrateUsesAdkTest(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(created, expected_order)
         self.assertEqual(used_models, [interactive_agent.MODEL] * len(expected_order))
+        for kwargs in used_kwargs:
+            self.assertEqual(kwargs.get("mcp_url"), os.environ["ADK_MCP_URL"])
+            self.assertEqual(kwargs.get("mcp_token"), os.environ["ADK_MCP_TOKEN"])
         self.assertEqual(evaluation, "APPROVED")
         for role in interactive_agent.WORKFLOW_ORDER:
             self.assertEqual(state[role], f"{role} response")
