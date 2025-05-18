@@ -2,7 +2,7 @@ import os
 import asyncio
 import openai
 from flask import Flask, request, render_template_string, session
-from adk import LlmAgent, SequentialAgent, LoopAgent
+from adk import LlmAgent, SequentialAgent, LoopAgent, MCPToolset
 from uuid import uuid4
 
 API_KEY = os.getenv("OPENAI_API_KEY")
@@ -21,6 +21,11 @@ if MCP_URL:
     _MCP_KWARGS["mcp_url"] = MCP_URL
 if MCP_TOKEN:
     _MCP_KWARGS["mcp_token"] = MCP_TOKEN
+
+_TOOLSET = None
+if MCP_URL and MCP_TOKEN:
+    _TOOLSET = MCPToolset(mcp_url=MCP_URL, mcp_token=MCP_TOKEN)
+    _MCP_KWARGS["toolset"] = _TOOLSET
 
 
 SYSTEM_PROMPTS = {
@@ -51,7 +56,8 @@ SYSTEM_PROMPTS = {
         "Refine the database schema and suggest indexing or optimisation."
     ),
     "code_generation": (
-        "Generate or update application source code based on the design."
+        "Generate or update application source code based on the design. "
+        "Use available tools like 'python' for quick execution when helpful."
     ),
     "code_review": (
         "Review the current code and suggest fixes or improvements."
