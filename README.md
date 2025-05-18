@@ -1,6 +1,7 @@
 # Interactive Coding Agent
 
-This repository now contains an example multi‑agent coding assistant that can be accessed through a simple web interface. Several specialized agents – an Architect, DBA, Coding Specialist and QA Specialist – collaborate on each request. Their work is reviewed by an evaluation agent which can trigger a short improvement cycle. The agents now build on one another's replies so the flow resembles a real development team. Each visitor has an isolated chat session.
+This repository provides a simple web interface for a multi-agent coding assistant. The system now includes many more roles (market research, system design, code generation, testing and others) which are described in `AGENTS.md`. The project manager agent orchestrates the flow so the conversation mimics a collaborative development team. An evaluation agent may request improvements before final approval, triggering an automatic improvement cycle where code is regenerated and retested. Each visitor has an isolated chat session and conversation state is stored in memory.
+See `AGENTS.md` for details about each agent role.
 
 ## Requirements
 
