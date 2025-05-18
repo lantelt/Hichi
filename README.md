@@ -18,6 +18,8 @@ Start the web server and open your browser to `http://localhost:5000`:
 ```bash
 python interactive_agent.py
 ```
+The page now includes a field allowing you to select how many improvement cycles
+should run. Leave it blank to use the `MAX_ITERATIONS` environment default.
 
 ### Running with Docker
 
@@ -29,6 +31,7 @@ docker run --rm -p 5000:5000 -e OPENAI_API_KEY=your-key-here interactive-agent
 ```
 
 You can optionally set `FLASK_SECRET` to specify the Flask session secret key.
+`MAX_ITERATIONS` can also be set to change how many improvement cycles run by default.
 
 ## Note
 
