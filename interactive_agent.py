@@ -2,6 +2,7 @@ import os
 import asyncio
 import openai
 from flask import Flask, request, render_template_string, session
+from adk import LlmAgent, SequentialAgent, LoopAgent
 from uuid import uuid4
 
 API_KEY = os.getenv("OPENAI_API_KEY")
@@ -65,23 +66,7 @@ SYSTEM_PROMPTS = {
 
 
 
-class Agent:
-    def __init__(self, role: str, prompt: str):
-        self.role = role
-        self.prompt = prompt
 
-    async def ask(self, messages):
-        try:
-            response = await openai.ChatCompletion.acreate(
-                model=MODEL,
-                messages=[{"role": "system", "content": self.prompt}] + messages,
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            return f"[Error from {self.role} agent: {e}]"
-
-
-AGENTS = {role: Agent(role, prompt) for role, prompt in SYSTEM_PROMPTS.items()}
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET", "dev")
@@ -110,53 +95,39 @@ def _append_and_prune(log: list, entry: dict, sid: str):
         _store_old_entry(sid, old)
 
 
-async def _ask_agent(role: str, messages):
-    return await AGENTS[role].ask(messages)
 
 
-async def _run_agent(role: str, conversation, state):
-    """Call an agent and record its output in state."""
-    reply = await _ask_agent(role, conversation)
-    conversation.append({"role": "assistant", "content": reply})
-    state[role] = reply
-    return reply
+
+WORKFLOW_ORDER = [
+    "market_research",
+    "demand_analysis",
+    "requirement_def",
+    "system_design",
+    "server_design",
+    "infrastructure",
+    "db_tuning",
+    "code_generation",
+    "code_review",
+    "test_generation",
+    "security_audit",
+    "deployment",
+    "project_manager",
+]
+
+IMPROVEMENT_FLOW = ["code_generation", "code_review", "test_generation"]
+
+
+def _build_workflow(max_iterations: int = 1):
+    sub_agents = [LlmAgent(name=role, prompt=SYSTEM_PROMPTS[role]) for role in WORKFLOW_ORDER]
+    seq = SequentialAgent(sub_agents=sub_agents)
+    improvement_agents = [LlmAgent(name=role, prompt=SYSTEM_PROMPTS[role]) for role in IMPROVEMENT_FLOW]
+    evaluator = LlmAgent(name="solution_evaluation", prompt=SYSTEM_PROMPTS["solution_evaluation"])
+    return LoopAgent(main_agent=seq, improvement_agents=improvement_agents, evaluator=evaluator, max_loops=max_iterations)
 
 
 async def _orchestrate(user_input: str, max_iterations: int = 1):
-    """Run the defined agents in sequence and collect their outputs."""
-    conversation = [{"role": "user", "content": user_input}]
-    state = {}
-
-    workflow = [
-        "market_research",
-        "demand_analysis",
-        "requirement_def",
-        "system_design",
-        "server_design",
-        "infrastructure",
-        "db_tuning",
-        "code_generation",
-        "code_review",
-        "test_generation",
-        "security_audit",
-        "deployment",
-        "project_manager",
-    ]
-
-    for role in workflow:
-        await _run_agent(role, conversation, state)
-
-    evaluation = await _run_agent("solution_evaluation", conversation, state)
-    iteration = 0
-
-    improve_flow = ["code_generation", "code_review", "test_generation"]
-    while "IMPROVE" in evaluation.upper() and iteration < max_iterations:
-        conversation.append({"role": "assistant", "content": evaluation})
-        for role in improve_flow:
-            await _run_agent(role, conversation, state)
-        evaluation = await _run_agent("solution_evaluation", conversation, state)
-        iteration += 1
-
+    workflow = _build_workflow(max_iterations)
+    state, evaluation = await workflow.run(user_input)
     return state, evaluation
 
 
