@@ -40,10 +40,17 @@ flask_stub = types.SimpleNamespace(
     render_template_string=lambda *a, **kw: "",
     session={},
 )
+created_toolset = {}
+class MCPToolset:
+    def __init__(self, mcp_url=None, mcp_token=None, **kwargs):
+        created_toolset['url'] = mcp_url
+        created_toolset['token'] = mcp_token
+
 adk_stub = types.SimpleNamespace(
     LlmAgent=object,
     SequentialAgent=object,
     LoopAgent=object,
+    MCPToolset=MCPToolset,
 )
 sys.modules.setdefault("flask", flask_stub)
 sys.modules.setdefault("adk", adk_stub)
@@ -105,6 +112,9 @@ class OrchestrateUsesAdkTest(unittest.IsolatedAsyncioTestCase):
         for kwargs in used_kwargs:
             self.assertEqual(kwargs.get("mcp_url"), os.environ["ADK_MCP_URL"])
             self.assertEqual(kwargs.get("mcp_token"), os.environ["ADK_MCP_TOKEN"])
+            self.assertIs(kwargs.get("toolset"), interactive_agent._TOOLSET)
+        self.assertEqual(created_toolset.get('url'), os.environ["ADK_MCP_URL"])
+        self.assertEqual(created_toolset.get('token'), os.environ["ADK_MCP_TOKEN"])
         self.assertEqual(evaluation, "APPROVED")
         for role in interactive_agent.WORKFLOW_ORDER:
             self.assertEqual(state[role], f"{role} response")
