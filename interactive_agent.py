@@ -87,6 +87,28 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET", "dev")
 chat_logs = {}
 
+# Maximum number of entries kept in memory per session.
+MAX_LOG_LENGTH = int(os.getenv("MAX_LOG_LENGTH", "100"))
+
+# Directory for persisting pruned log entries
+LOG_DIR = os.path.join(os.path.dirname(__file__), "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+
+def _store_old_entry(sid: str, entry: dict):
+    """Append a pruned log entry to a session log file."""
+    path = os.path.join(LOG_DIR, f"{sid}.log")
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(f"{entry['sender']}: {entry['text']}\n")
+
+
+def _append_and_prune(log: list, entry: dict, sid: str):
+    """Append an entry to the in-memory log and remove old ones."""
+    log.append(entry)
+    while len(log) > MAX_LOG_LENGTH:
+        old = log.pop(0)
+        _store_old_entry(sid, old)
+
 
 async def _ask_agent(role: str, messages):
     return await AGENTS[role].ask(messages)
@@ -183,11 +205,11 @@ def index():
     if request.method == "POST":
         msg = request.form.get("message", "").strip()
         if msg:
-            log.append({"sender": "User", "text": msg})
+            _append_and_prune(log, {"sender": "User", "text": msg}, sid)
             state, evaluation = asyncio.run(_orchestrate(msg))
             for role, text in state.items():
-                log.append({"sender": role, "text": text})
-            log.append({"sender": "Evaluator", "text": evaluation})
+                _append_and_prune(log, {"sender": role, "text": text}, sid)
+            _append_and_prune(log, {"sender": "Evaluator", "text": evaluation}, sid)
     return render_template_string(TEMPLATE, log=log)
 
 
