@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: interactive-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: interactive-agent
+  template:
+    metadata:
+      labels:
+        app: interactive-agent
+    spec:
+      containers:
+      - name: agent
+        image: interactive-agent:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openai
+              key: OPENAI_API_KEY
+        - name: FLASK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: flask
+              key: FLASK_SECRET
+        - name: ADK_MCP_URL
+          value: "http://mcp-service"
+        - name: ADK_MCP_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: adk
+              key: token
