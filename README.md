@@ -10,7 +10,8 @@ stage in `WORKFLOW_ORDER` of `interactive_agent.py` becomes an `LlmAgent` with a
 specific system prompt.  These agents run sequentially via `SequentialAgent` and
 are wrapped in a `LoopAgent` so the evaluator can trigger automatic improvement
 loops.  ADK handles passing state between agents and executing the full
-pipeline, allowing new roles to be inserted easily.
+pipeline, allowing new roles to be inserted easily.  Each agent now specifies an
+`output_key` so its response is written to the shared state automatically.
 
 ## Requirements
 
