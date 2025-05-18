@@ -118,11 +118,26 @@ IMPROVEMENT_FLOW = ["code_generation", "code_review", "test_generation"]
 
 
 def _build_workflow(max_iterations: int = 1):
-    sub_agents = [LlmAgent(name=role, prompt=SYSTEM_PROMPTS[role]) for role in WORKFLOW_ORDER]
+    sub_agents = [
+        LlmAgent(name=role, prompt=SYSTEM_PROMPTS[role], model=MODEL)
+        for role in WORKFLOW_ORDER
+    ]
     seq = SequentialAgent(sub_agents=sub_agents)
-    improvement_agents = [LlmAgent(name=role, prompt=SYSTEM_PROMPTS[role]) for role in IMPROVEMENT_FLOW]
-    evaluator = LlmAgent(name="solution_evaluation", prompt=SYSTEM_PROMPTS["solution_evaluation"])
-    return LoopAgent(main_agent=seq, improvement_agents=improvement_agents, evaluator=evaluator, max_loops=max_iterations)
+    improvement_agents = [
+        LlmAgent(name=role, prompt=SYSTEM_PROMPTS[role], model=MODEL)
+        for role in IMPROVEMENT_FLOW
+    ]
+    evaluator = LlmAgent(
+        name="solution_evaluation",
+        prompt=SYSTEM_PROMPTS["solution_evaluation"],
+        model=MODEL,
+    )
+    return LoopAgent(
+        main_agent=seq,
+        improvement_agents=improvement_agents,
+        evaluator=evaluator,
+        max_loops=max_iterations,
+    )
 
 
 async def _orchestrate(user_input: str, max_iterations: int = 1):
