@@ -29,6 +29,8 @@ docker run --rm -p 5000:5000 -e OPENAI_API_KEY=your-key-here interactive-agent
 ```
 
 You can optionally set `FLASK_SECRET` to specify the Flask session secret key.
+The server will keep up to `MAX_LOG_LENGTH` messages in memory for each session
+(default 100). Older messages are written to files under `logs/`.
 
 ## Note
 
