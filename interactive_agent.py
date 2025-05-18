@@ -129,18 +129,31 @@ IMPROVEMENT_FLOW = ["code_generation", "code_review", "test_generation"]
 
 def _build_workflow(max_iterations: int = 1):
     sub_agents = [
-        LlmAgent(name=role, prompt=SYSTEM_PROMPTS[role], model=MODEL, **_MCP_KWARGS)
+        LlmAgent(
+            name=role,
+            prompt=SYSTEM_PROMPTS[role],
+            model=MODEL,
+            output_key=role,
+            **_MCP_KWARGS,
+        )
         for role in WORKFLOW_ORDER
     ]
     seq = SequentialAgent(sub_agents=sub_agents)
     improvement_agents = [
-        LlmAgent(name=role, prompt=SYSTEM_PROMPTS[role], model=MODEL, **_MCP_KWARGS)
+        LlmAgent(
+            name=role,
+            prompt=SYSTEM_PROMPTS[role],
+            model=MODEL,
+            output_key=role,
+            **_MCP_KWARGS,
+        )
         for role in IMPROVEMENT_FLOW
     ]
     evaluator = LlmAgent(
         name="solution_evaluation",
         prompt=SYSTEM_PROMPTS["solution_evaluation"],
         model=MODEL,
+        output_key="solution_evaluation",
         **_MCP_KWARGS,
     )
     return LoopAgent(
