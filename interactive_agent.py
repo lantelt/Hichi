@@ -42,31 +42,58 @@ SYSTEM_PROMPTS = {
         "identified problem."
     ),
     "system_design": (
-        "Design the overall architecture including major components and their "
-        "interactions."
+        "You are the System Architect. Your responsibility is to design a robust, "
+        "scalable, and maintainable overall system architecture. Clearly define "
+        "major components, their responsibilities, and the interactions between "
+        "them. Consider non-functional requirements like performance, security, "
+        "and scalability. Output detailed diagrams or descriptions as appropriate."
     ),
     "server_design": (
-        "Choose frameworks, define API structure and sketch the database schema."
+        "You are the Server Design Specialist. Your role involves choosing "
+        "appropriate server-side frameworks, defining a clear and consistent API "
+        "structure, and creating an initial database schema. For the database "
+        "schema, focus on logical data organization; the DBA will further refine "
+        "it for performance and optimization. Ensure your design choices support "
+        "the architectural goals."
     ),
     "infrastructure": (
         "Provide Docker and Kubernetes configuration snippets for the target "
         "environment."
     ),
     "db_tuning": (
-        "Refine the database schema and suggest indexing or optimisation."
+        "You are the Database Administrator (DBA). Your task is to refine the "
+        "database schema for optimal performance, integrity, and scalability. "
+        "Suggest appropriate indexing strategies, query optimizations, and "
+        "address data security considerations. Ensure the schema aligns with "
+        "the application's data access patterns."
     ),
     "code_generation": (
-        "Generate or update application source code based on the design. "
-        "Use available tools like 'python' for quick execution when helpful."
+        "You are the Coding Specialist. Your responsibility is to generate "
+        "high-quality, clean, maintainable, and efficient source code based on "
+        "the provided design and specifications. Follow best coding practices "
+        "and conventions for the chosen language/framework. Use available tools "
+        "like 'python' for code execution or validation if needed. Ensure your "
+        "code is well-commented."
     ),
     "code_review": (
-        "Review the current code and suggest fixes or improvements."
+        "You are the QA Specialist focused on Code Review. Meticulously review "
+        "the generated source code for correctness, adherence to design "
+        "specifications, potential bugs, performance issues, and "
+        "maintainability. Provide specific, actionable suggestions for fixes or "
+        "improvements."
     ),
     "test_generation": (
-        "Write unit tests and report the results of running them."
+        "You are the QA Specialist focused on Test Generation. Your task is to "
+        "create comprehensive unit tests that cover critical aspects of the "
+        "generated code. Aim for high test coverage. Report the results of "
+        "running these tests clearly, indicating any failures."
     ),
     "security_audit": (
-        "Identify potential security vulnerabilities in code and configuration."
+        "You are the QA Specialist focused on Security Audit. Your "
+        "responsibility is to identify potential security vulnerabilities in the "
+        "generated code, infrastructure configuration, and data handling. Focus "
+        "on common web application vulnerabilities (e.g., OWASP Top 10) and "
+        "suggest mitigations."
     ),
     "deployment": (
         "Describe the steps required to deploy the application."
@@ -75,8 +102,13 @@ SYSTEM_PROMPTS = {
         "Summarise progress so far and coordinate next steps."
     ),
     "solution_evaluation": (
-        "Evaluate whether the solution satisfies the original request. Respond "
-        "with 'APPROVED' or 'IMPROVE:' followed by feedback."
+        "You are the Solution Evaluation Agent. Your role is to critically assess whether the generated solution "
+        "fully satisfies the original user request and meets quality standards.\n"
+        "- If the solution is satisfactory and complete, respond with only the word 'APPROVED'.\n"
+        "- If the solution needs improvement, respond with 'IMPROVE:' followed by a detailed, actionable critique. "
+        "Clearly specify which aspects are lacking (e.g., bugs in code, unmet requirements, poor test coverage, "
+        "security concerns) and provide concrete suggestions for what the 'code_generation', 'code_review', or "
+        "'test_generation' agents should do next to address the issues. Vague feedback is not helpful."
     ),
 }
 
@@ -170,7 +202,7 @@ def _build_workflow(max_iterations: int = 1):
     )
 
 
-async def _orchestrate(user_input: str, max_iterations: int = 1):
+async def _orchestrate(user_input: str, max_iterations: int = 3):
     workflow = _build_workflow(max_iterations)
     state, evaluation = await workflow.run(user_input)
     return state, evaluation
@@ -182,24 +214,130 @@ TEMPLATE = """
   <head>
     <title>Interactive Coding Agent</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 40px; }
-      .message { margin-bottom: 1em; }
-      .sender { font-weight: bold; }
-      pre { background: #f4f4f4; padding: 10px; }
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background-color: #f9f9f9;
+        color: #333;
+        font-size: 16px; /* Slightly increased base font size */
+      }
+      h1 {
+        text-align: center;
+        color: #444;
+      }
+      #log {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 15px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      }
+      .message {
+        margin-bottom: 1.5em; /* Increased spacing */
+        padding: 12px;
+        border-radius: 6px;
+        line-height: 1.6;
+      }
+      .sender {
+        font-weight: bold;
+        display: block; /* Make sender take full width for better structure */
+        margin-bottom: 5px;
+      }
+      .timestamp {
+        font-size: 0.8em;
+        color: #777; /* Darker grey for better contrast */
+        display: block;
+        margin-bottom: 8px;
+      }
+      .user-message {
+        background-color: #e1f5fe; /* Light blue */
+        border-left: 5px solid #03a9f4; /* Accent border */
+        /* text-align: right; /* This would align text, often message block is aligned instead */
+      }
+      .agent-message {
+        background-color: #f0f0f0; /* Light grey */
+        border-left: 5px solid #757575; /* Accent border */
+      }
+      /* Styling for user message container if we want to align the whole block */
+      .message-container.user {
+        display: flex;
+        justify-content: flex-end;
+      }
+      .message-container.user .message {
+         max-width: 80%; /* Prevent user message from taking full width */
+      }
+
+      pre {
+        background: #2d2d2d; /* Darker background for code */
+        color: #f0f0f0; /* Light text for code */
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto; /* Enable horizontal scrolling for long lines */
+        font-family: "Courier New", Courier, monospace;
+        font-size: 0.95em;
+      }
+      code {
+        font-family: "Courier New", Courier, monospace;
+        /* background: #eee;  Optional: if inline code needs different bg */
+        /* padding: 2px 4px; */
+        /* border-radius: 3px; */
+      }
+      form {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 15px;
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        display: flex; /* For aligning textarea and button */
+        align-items: flex-start;
+      }
+      textarea {
+        flex-grow: 1;
+        min-height: 60px; /* Increased height */
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 1em;
+        margin-right: 10px;
+      }
+      button {
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1em;
+        transition: background-color 0.2s ease;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
     </style>
   </head>
   <body>
     <h1>Interactive Coding Agent</h1>
     <div id="log">
     {% for entry in log %}
-      <div class="message">
-        <span class="sender">{{ entry['sender'] }}:</span>
-        <pre><code>{{ entry['text'] }}</code></pre>
+      {# Determine if the message is from the user to apply container-level alignment #}
+      <div class="message-container {% if entry['sender'] == 'User' %}user{% else %}agent{% endif %}">
+        <div class="message {{ 'user-message' if entry['sender'] == 'User' else 'agent-message' }}">
+          <span class="sender">{{ entry['sender'] }}</span>
+          {# Display timestamp if available, otherwise nothing #}
+          {% if entry.timestamp %}
+            <span class="timestamp">{{ entry.timestamp }}</span>
+          {% else %}
+            <span class="timestamp">Timestamp not available</span> {# Placeholder #}
+          {% endif %}
+          <pre><code>{{ entry['text'] }}</code></pre>
+        </div>
       </div>
     {% endfor %}
     </div>
     <form method="post">
-      <textarea name="message" rows="4" style="width:80%" autofocus></textarea><br/>
+      <textarea name="message" rows="4" autofocus placeholder="Type your message here..."></textarea>
       <button type="submit">Send</button>
     </form>
   </body>
